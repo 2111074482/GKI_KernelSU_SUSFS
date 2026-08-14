@@ -8,17 +8,18 @@ on:
   workflow_dispatch:
     inputs:
       kernelsu_variant:
-        description: "KernelSU 变体"
+        description: "KernelSU 变体 (none=不带KSU，仅Droidspaces补丁)"
         required: true
         type: choice
         options:
+          - none
           - Official
           #- Next
           - SukiSU
           - SukiSU(40726)
           - SukiSU(40548)
           - ReSukiSU
-        default: ReSukiSU
+        default: none
       version:
         description: "自定义版本名 (可选)"
         required: false
@@ -165,9 +166,9 @@ jobs:
       droidspaces_ntsync: ${{ inputs.droidspaces_ntsync || false }}
       artifact_upload_mode: ${{ inputs.artifact_upload_mode }}
 
-  # 仅在直接触发时运行，从 main.yml 调用时跳过
+  # 仅在直接触发时运行，从 main.yml 调用时跳过 (none=无KSU时不需管理器)
   get-ksu-manager:
-    if: ${{ !inputs.called_from_main }}
+    if: ${{ inputs.kernelsu_variant != 'none' && !inputs.called_from_main }}
     uses: ./.github/workflows/get-manager.yml
     secrets: inherit
     with:
