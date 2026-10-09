@@ -999,6 +999,11 @@ jobs:
           # task_struct 等结构体不含 CONFIG_USER_NS 条件编译，因此不影响 kABI 布局，
           # 不需要像 SYSVIPC/IPC_NS 那样额外打 padding 补丁。与 wild_kernel 保持一致，全版本启用。
           enable_config CONFIG_USER_NS
+          # 修复 Droidspaces 容器资源限制与 IPv6 NAT
+          enable_config_if_defined CONFIG_CFS_BANDWIDTH
+          enable_config_if_defined CONFIG_CGROUP_PIDS
+          enable_config_if_defined CONFIG_IP6_NF_NAT
+          enable_config_if_defined CONFIG_IP6_NF_TARGET_MASQUERADE
 
           # 可选: 网络相关配置 (Docker/NAT 模式)
           enable_config_if_defined CONFIG_NETFILTER_XT_MATCH_ADDRTYPE
