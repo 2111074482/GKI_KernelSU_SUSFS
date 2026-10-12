@@ -998,6 +998,13 @@ jobs:
           enable_config_if_defined CONFIG_NETFILTER_XT_TARGET_REJECT
           enable_config_if_defined CONFIG_IP_NF_TARGET_REJECT
 
+          # Droidspaces 增强网络支持 (kABI-safe)
+          # Macvlan 模式 (--net=macvlan)
+          enable_config_if_defined CONFIG_MACVLAN
+          # IPv6 NAT (NAT66)
+          enable_config_if_defined CONFIG_IP6_NF_NAT
+          enable_config_if_defined CONFIG_IP6_NF_TARGET_MASQUERADE
+
           echo "Droidspaces 集成完成"
 
           echo "GKI6.6 普通用户联网专用配置 (Droidspaces)"
