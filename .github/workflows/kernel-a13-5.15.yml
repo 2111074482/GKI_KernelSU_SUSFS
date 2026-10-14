@@ -1,7 +1,9 @@
 name: 内核构建 - Android 13 (5.15)
+
 permissions:
   contents: write
   actions: write
+
 on:
   workflow_dispatch:
     inputs:
@@ -133,6 +135,7 @@ on:
         required: false
         type: boolean
         default: false
+
 jobs:
   build-kernels-a13-5-15:
     name: "5.15.${{ matrix.sub_level }}-${{ matrix.os_patch_level }}"
@@ -150,8 +153,8 @@ jobs:
       sub_level: ${{ matrix.sub_level }}
       os_patch_level: ${{ matrix.os_patch_level }}
       ksu_variant: ${{ inputs.kernelsu_variant }}
-      version: ${{ inputs.version || "" }}
-      build_time: ${{ inputs.build_time || "" }}
+      version: ${{ inputs.version || '' }}
+      build_time: ${{ inputs.build_time || '' }}
       use_zram: ${{ inputs.use_zram }}
       use_bbg: ${{ inputs.use_bbg }}
       use_kpm: ${{ inputs.use_kpm }}
@@ -159,11 +162,13 @@ jobs:
       cve_2026_43499_patch: ${{ inputs.cve_2026_43499_patch }}
       supp_op: false
       enable_susfs: ${{ !inputs.cancel_susfs }}
-      droidspaces: ${{ inputs.droidspaces || "off" }}
+      droidspaces: ${{ inputs.droidspaces || 'off' }}
       droidspaces_ntsync: ${{ inputs.droidspaces_ntsync || false }}
       artifact_upload_mode: ${{ inputs.artifact_upload_mode }}
+
+  # 仅在直接触发时运行，从 main.yml 调用时跳过 (none=无KSU时不需管理器)
   get-ksu-manager:
-    if: ${{ inputs.kernelsu_variant != "none" && !inputs.called_from_main }}
+    if: ${{ inputs.kernelsu_variant != 'none' && !inputs.called_from_main }}
     uses: ./.github/workflows/get-manager.yml
     secrets: inherit
     with:
