@@ -334,6 +334,23 @@ jobs:
           clone_with_retry https://github.com/WildKernels/AnyKernel3.git AnyKernel3 -b "$ANYKERNEL_BRANCH"
           rm -rf AnyKernel3/.git
 
+          # === [PATCH] 非交互刷入支持 ===
+          # WildKernels/AnyKernel3 gki-2.0 默认 keycheck.timeout=10，
+          # 会等待音量键确认 10 秒；在 KernelSU/Magisk 等 root 环境刷入时
+          # 无 TTY 交互通道，会阻塞卡住。置 0 即跳过等待，root/recovery 都能刷。
+          if [ -f AnyKernel3/anykernel.sh ]; then
+            if grep -q '^keycheck.timeout=' AnyKernel3/anykernel.sh; then
+              sed -i 's/^keycheck.timeout=.*/keycheck.timeout=0/' AnyKernel3/anykernel.sh
+            else
+              sed -i "s/^do.devicecheck=.*/&\nkeycheck.timeout=0/" AnyKernel3/anykernel.sh
+            fi
+            echo "[PATCH] anykernel.sh keycheck.timeout -> 0"
+            grep -n 'keycheck.timeout' AnyKernel3/anykernel.sh || true
+          else
+            echo "::warning::anykernel.sh 未找到，跳过 keycheck 补丁"
+          fi
+          # === [/PATCH] ===
+
           echo "准备补丁资源..."
           clone_with_retry https://github.com/WildKernels/kernel_patches.git kernel_patches
           clone_with_retry https://github.com/ShirkNeko/SukiSU_patch.git SukiSU_patch
