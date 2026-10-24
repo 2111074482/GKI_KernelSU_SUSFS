@@ -1470,28 +1470,6 @@ jobs:
           echo "[PATCH] LTO 配置结果:"
           grep -E '^CONFIG_LTO|^# CONFIG_LTO' "$DEFCONFIG" || true
           # === [/PATCH] ===
-
-          # === [PATCH] Droidspaces 可选特性全绿（MACVLAN / CFS_BANDWIDTH / CGROUP_PIDS） ===
-          # 目的：补齐 Droidspaces v7.0.0 需求检查中的三个缺失项：
-          #   Macvlan support       -> CONFIG_MACVLAN
-          #   CPU limit support     -> CONFIG_CFS_BANDWIDTH
-          #   Process limit support -> CONFIG_CGROUP_PIDS
-          # 备注：三项均为 OPTIONAL。CFS_BANDWIDTH 与 CGROUP_PIDS 属"给自己加限制"的功能，
-          #       开启后可用 --cpus / --pids-limit，不用则无任何影响；MACVLAN 受手机 Wi-Fi 驱动
-          #       限制，能否真正生效取决于 wlan 驱动是否支持，内核编入不保证可用。
-          for OPT in CONFIG_MACVLAN CONFIG_CFS_BANDWIDTH CONFIG_CGROUP_PIDS CONFIG_MACVTAP; do
-            if grep -qx "\# ${OPT} is not set" "$DEFCONFIG"; then
-              sed -i -E "s/^# ${OPT} not set/${OPT}=y/" "$DEFCONFIG" 2>/dev/null || true
-              sed -i -E "s/^# ${OPT} is not set/${OPT}=y/" "$DEFCONFIG"
-            elif ! grep -qx "${OPT}=y" "$DEFCONFIG"; then
-              echo "${OPT}=y" >> "$DEFCONFIG"
-            fi
-          done
-
-          echo "[PATCH] Droidspaces 可选特性配置结果:"
-          grep -E '^CONFIG_MACVLAN|^CONFIG_MACVTAP|^CONFIG_CFS_BANDWIDTH|^CONFIG_CGROUP_PIDS|^# CONFIG_MACVLAN|^# CONFIG_CFS_BANDWIDTH|^# CONFIG_CGROUP_PIDS' "$DEFCONFIG" || true
-          # === [/PATCH-DS-OPTS] ===
-
           # 禁用KSU 时源码里没有 KernelSU，CONFIG_KSU 不存在，写入会被 bazel 的 defconfig 检查拒绝
           if [ "${{ inputs.ksu_mode }}" != "禁用KSU" ]; then
             echo "CONFIG_KSU=y" >> "$DEFCONFIG"
