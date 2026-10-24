@@ -1431,6 +1431,33 @@ jobs:
           CONFIG_TMPFS_POSIX_ACL=y
           EOF
 
+          # === [PATCH] LTO 降级为 NONE ===
+          # 上游 stock_5.15.config 为 CONFIG_LTO_CLANG_FULL=y，FULL LTO 的
+          # `LTO vmlinux.o` 阶段需把整个内核 IR 载入内存，GitHub 免费 Runner
+          # 仅 7GB RAM，实测在链接 10 分钟后被 OOM 杀（runner shutdown signal）。
+          # 改为 LTO_NONE：不触发上游 Thin LTO 守卫，内存占用大幅下降，
+          # 内核功能与 FULL LTO 完全一致，仅体积略增、优化幅度差异 <1%。
+          sed -i -E 's/^CONFIG_LTO_CLANG_FULL=y/# CONFIG_LTO_CLANG_FULL is not set/' "$DEFCONFIG" || true
+          sed -i -E 's/^CONFIG_LTO_CLANG_THIN=y/# CONFIG_LTO_CLANG_THIN is not set/' "$DEFCONFIG" || true
+          sed -i -E 's/^CONFIG_LTO_CLANG=y/# CONFIG_LTO_CLANG is not set/' "$DEFCONFIG" || true
+          sed -i -E 's/^CONFIG_LTO=y/# CONFIG_LTO is not set/' "$DEFCONFIG" || true
+          sed -i -E 's/^# CONFIG_LTO_NONE is not set/CONFIG_LTO_NONE=y/' "$DEFCONFIG" || true
+
+          # 兜底：若上面未命中，直接追加确保 NONE 生效
+          if ! grep -qx 'CONFIG_LTO_NONE=y' "$DEFCONFIG"; then
+            {
+              echo "# CONFIG_LTO is not set"
+              echo "# CONFIG_LTO_CLANG is not set"
+              echo "# CONFIG_LTO_CLANG_FULL is not set"
+              echo "# CONFIG_LTO_CLANG_THIN is not set"
+              echo "CONFIG_LTO_NONE=y"
+            } >> "$DEFCONFIG"
+          fi
+
+          echo "[PATCH] LTO 配置结果:"
+          grep -E '^CONFIG_LTO|^# CONFIG_LTO' "$DEFCONFIG" || true
+          # === [/PATCH] ===
+
           # 禁用KSU 时源码里没有 KernelSU，CONFIG_KSU 不存在，写入会被 bazel 的 defconfig 检查拒绝
           if [ "${{ inputs.ksu_mode }}" != "禁用KSU" ]; then
             echo "CONFIG_KSU=y" >> "$DEFCONFIG"
