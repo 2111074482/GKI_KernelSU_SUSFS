@@ -1431,27 +1431,40 @@ jobs:
           CONFIG_TMPFS_POSIX_ACL=y
           EOF
 
-          # === [PATCH] LTO 降级为 NONE ===
-          # 上游 stock_5.15.config 为 CONFIG_LTO_CLANG_FULL=y，FULL LTO 的
-          # `LTO vmlinux.o` 阶段需把整个内核 IR 载入内存，GitHub 免费 Runner
-          # 仅 7GB RAM，实测在链接 10 分钟后被 OOM 杀（runner shutdown signal）。
-          # 改为 LTO_NONE：不触发上游 Thin LTO 守卫，内存占用大幅下降，
-          # 内核功能与 FULL LTO 完全一致，仅体积略增、优化幅度差异 <1%。
+          # === [PATCH] LTO 设为 THIN ===
+          # 目标：Thin LTO（LTO_CLANG_THIN）。
+          # 说明：
+          #   1) 原本上游 stock_5.15.config 为 CONFIG_LTO_CLANG_FULL=y（FULL LTO），
+          #      其 `LTO vmlinux.o` 阶段需把整个内核 IR 载入内存，GitHub 免费 Runner
+          #      仅 7GB RAM，实测链接约 10 分钟后被 OOM 杀（runner shutdown signal）。
+          #   2) 本机当前运行的内核实测为 CONFIG_LTO_CLANG_THIN=y，验证可用。
+          #   3) Thin LTO 按模块分组并行优化，内存需求显著低于 FULL，通常 Runner 可承受。
+          # 注意：上游 build.yml 有一条 post-build 守卫会在检测到
+          #       CONFIG_LTO_CLANG_THIN=y 时报错退出（认为会导致无法启动）。
+          #       本次为对比测试而刻意启用 THIN，故需同时放宽该守卫。
           sed -i -E 's/^CONFIG_LTO_CLANG_FULL=y/# CONFIG_LTO_CLANG_FULL is not set/' "$DEFCONFIG" || true
-          sed -i -E 's/^CONFIG_LTO_CLANG_THIN=y/# CONFIG_LTO_CLANG_THIN is not set/' "$DEFCONFIG" || true
-          sed -i -E 's/^CONFIG_LTO_CLANG=y/# CONFIG_LTO_CLANG is not set/' "$DEFCONFIG" || true
-          sed -i -E 's/^CONFIG_LTO=y/# CONFIG_LTO is not set/' "$DEFCONFIG" || true
-          sed -i -E 's/^# CONFIG_LTO_NONE is not set/CONFIG_LTO_NONE=y/' "$DEFCONFIG" || true
+          sed -i -E 's/^CONFIG_LTO_NONE=y/# CONFIG_LTO_NONE is not set/' "$DEFCONFIG" || true
+          sed -i -E 's/^# CONFIG_LTO_NONE is not set/# CONFIG_LTO_NONE is not set/' "$DEFCONFIG" || true
 
-          # 兜底：若上面未命中，直接追加确保 NONE 生效
-          if ! grep -qx 'CONFIG_LTO_NONE=y' "$DEFCONFIG"; then
-            {
-              echo "# CONFIG_LTO is not set"
-              echo "# CONFIG_LTO_CLANG is not set"
-              echo "# CONFIG_LTO_CLANG_FULL is not set"
-              echo "# CONFIG_LTO_CLANG_THIN is not set"
-              echo "CONFIG_LTO_NONE=y"
-            } >> "$DEFCONFIG"
+          # 确保 THIN 生效
+          if grep -qx 'CONFIG_LTO_CLANG_THIN=y' "$DEFCONFIG"; then
+            :
+          elif grep -qx '# CONFIG_LTO_CLANG_THIN is not set' "$DEFCONFIG"; then
+            sed -i -E 's/^# CONFIG_LTO_CLANG_THIN is not set/CONFIG_LTO_CLANG_THIN=y/' "$DEFCONFIG"
+          else
+            echo "CONFIG_LTO_CLANG_THIN=y" >> "$DEFCONFIG"
+          fi
+
+          # 上级开关确保为 y
+          if grep -qx '# CONFIG_LTO is not set' "$DEFCONFIG"; then
+            sed -i -E 's/^# CONFIG_LTO is not set/CONFIG_LTO=y/' "$DEFCONFIG"
+          elif ! grep -qx 'CONFIG_LTO=y' "$DEFCONFIG"; then
+            echo "CONFIG_LTO=y" >> "$DEFCONFIG"
+          fi
+          if grep -qx '# CONFIG_LTO_CLANG is not set' "$DEFCONFIG"; then
+            sed -i -E 's/^# CONFIG_LTO_CLANG is not set/CONFIG_LTO_CLANG=y/' "$DEFCONFIG"
+          elif ! grep -qx 'CONFIG_LTO_CLANG=y' "$DEFCONFIG"; then
+            echo "CONFIG_LTO_CLANG=y" >> "$DEFCONFIG"
           fi
 
           echo "[PATCH] LTO 配置结果:"
@@ -1663,8 +1676,7 @@ jobs:
                 echo "最终配置: $FINAL_CONFIG"
                 grep -E '^CONFIG_LTO' "$FINAL_CONFIG" || echo '（未找到 CONFIG_LTO，可能未启用 LTO 支持）'
                 if grep -qx 'CONFIG_LTO_CLANG_THIN=y' "$FINAL_CONFIG"; then
-                  echo "::error::Image 使用了 Thin LTO，与官方 GKI 的 LTO_NONE 不一致，刷入后可能无法启动"
-                  exit 1
+                  echo "::warning::Image 使用了 Thin LTO（本次对比测试刻意启用，守卫已放宽，不再中断构建）"
                 fi
               else
                 echo "::warning::未找到生成的 .config，跳过 LTO 一致性校验"
