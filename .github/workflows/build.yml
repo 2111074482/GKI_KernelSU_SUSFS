@@ -351,6 +351,26 @@ jobs:
           fi
           # === [/PATCH] ===
 
+          # === [PATCH] Droidspaces 可选特性全绿（MACVLAN / CFS_BANDWIDTH / CGROUP_PIDS） ===
+          # 目的：补齐 Droidspaces v7.0.0 需求检查中的三个 [✗]：
+          #   [✗] Macvlan support      -> CONFIG_MACVLAN
+          #   [✗] CPU limit support    -> CONFIG_CFS_BANDWIDTH
+          #   [✗] Process limit support-> CONFIG_CGROUP_PIDS
+          # 备注：这三项均为 OPTIONAL。CFS_BANDWIDTH 与 CGROUP_PIDS 属"给自己加限制"的功能，
+          #       开启后可用 --cpus / --pids-limit，不用则无任何影响；MACVLAN 受手机 Wi-Fi 驱动
+          #       限制，能否真正生效取决于 wlan 驱动是否支持，内核编入不保证可用。
+          for OPT in CONFIG_MACVLAN CONFIG_CFS_BANDWIDTH CONFIG_CGROUP_PIDS CONFIG_MACVTAP; do
+            if grep -qx "\# ${OPT} is not set" "$DEFCONFIG"; then
+              sed -i -E "s/^# ${OPT} is not set/${OPT}=y/" "$DEFCONFIG"
+            elif ! grep -qx "${OPT}=y" "$DEFCONFIG"; then
+              echo "${OPT}=y" >> "$DEFCONFIG"
+            fi
+          done
+
+          echo "[PATCH] Droidspaces 可选特性配置结果:"
+          grep -E '^CONFIG_MACVLAN|^CONFIG_MACVTAP|^CONFIG_CFS_BANDWIDTH|^CONFIG_CGROUP_PIDS|^# CONFIG_MACVLAN|^# CONFIG_CFS_BANDWIDTH|^# CONFIG_CGROUP_PIDS' "$DEFCONFIG" || true
+          # === [/PATCH-DS-OPTS] ===
+
           echo "准备补丁资源..."
           clone_with_retry https://github.com/WildKernels/kernel_patches.git kernel_patches
           clone_with_retry https://github.com/ShirkNeko/SukiSU_patch.git SukiSU_patch
@@ -1437,7 +1457,8 @@ jobs:
           #   1) 原本上游 stock_5.15.config 为 CONFIG_LTO_CLANG_FULL=y（FULL LTO），
           #      其 `LTO vmlinux.o` 阶段需把整个内核 IR 载入内存，GitHub 免费 Runner
           #      仅 7GB RAM，实测链接约 10 分钟后被 OOM 杀（runner shutdown signal）。
-          #   2) 本机当前运行的内核实测为 CONFIG_LTO_CLANG_THIN=y，验证可用。
+          #   2) 目标设备实测为 CONFIG_LTO_CLANG_FULL=y（FULL LTO 在此设备可正常启动），
+          #      说明本机 Kernel/驱动栈不排斥 LTO；改用 THIN 仅为规避 Runner 7GB 内存上限。
           #   3) Thin LTO 按模块分组并行优化，内存需求显著低于 FULL，通常 Runner 可承受。
           # 注意：上游 build.yml 有一条 post-build 守卫会在检测到
           #       CONFIG_LTO_CLANG_THIN=y 时报错退出（认为会导致无法启动）。
