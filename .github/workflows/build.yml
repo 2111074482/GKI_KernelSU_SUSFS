@@ -1051,9 +1051,10 @@ jobs:
           # 不需要像 SYSVIPC/IPC_NS 那样额外打 padding 补丁。与 wild_kernel 保持一致，全版本启用。
           enable_config CONFIG_USER_NS
 
-          # 解决 Droidspaces 运行要求检查缺失项 (Process limit & Macvlan)
-          # 绝不开 CONFIG_CFS_BANDWIDTH，避免与高通 perf-hal / dev/cpuctl 冲突导致无法开机
+          # 解决 Droidspaces 运行要求检查全部缺失项 (Process limit / Macvlan / CPU limit)
+          # 通过规范 enable_config 方式注入，保持 stock_5.15.config 绝对原厂纯净以维持 kABI
           enable_config CONFIG_CGROUP_PIDS
+          enable_config CONFIG_CFS_BANDWIDTH
           enable_config_if_defined CONFIG_MACVLAN
           enable_config_if_defined CONFIG_MACVTAP
 
